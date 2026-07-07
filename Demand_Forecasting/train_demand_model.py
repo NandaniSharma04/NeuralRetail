@@ -23,7 +23,7 @@ class SKUForecastModel:
 
 def train_demand_model():
     print("Loading data for Demand Forecasting...")
-    df = pd.read_csv('../data/processed/processed_data.csv', parse_dates=['invoicedate'])
+    df = pd.read_csv('data/processed/processed_data.csv', parse_dates=['invoicedate'])
     
     # Top 50 SKUs by volume
     top_skus = df.groupby('stockcode')['quantity'].sum().nlargest(50).index
@@ -48,9 +48,9 @@ def train_demand_model():
     
     final_model = SKUForecastModel(models_dict)
     
-    os.makedirs('../models', exist_ok=True)
-    joblib.dump(final_model, '../models/demand_model.pkl')
-    print("Demand Forecast model saved to ../models/demand_model.pkl")
+    os.makedirs('/models', exist_ok=True)
+    joblib.dump(final_model, 'models/demand_model.pkl')
+    print("Demand Forecast model saved to models/demand_model.pkl")
 
 if __name__ == "__main__":
     train_demand_model()
