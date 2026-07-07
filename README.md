@@ -75,6 +75,19 @@ NeuralRetail/
 ├── data/
 │   └── new_cleaned_retail_data_with_churn.csv
 └── README.md
+
+## ── NeuralRetail Local Deployment Instructions ──
+Use the instructions below to spin up the distributed microservices on your local machine using either Python 3.10 or Python 3.13.
+
+### 🚀 Option A: One-Click Automation Launch (Windows)
+
+If you are on Windows, you can bypass manual terminal commands entirely by executing the orchestration batch script in the root directory:
+### Initialize the Streamlit Frontend Web Dashboard:
+py -3.13 -m streamlit run app\streamlit_app.py or streamlit run app\streamlit_app.py
+
+### Initialize the FastAPI Backend Server:
+py -3.13 -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 or uvicorn backend.main:app --reload
+
 ## Next Steps (Project-wide)
 - [ ] Demand forecasting model (Prophet)
 - [ ] Customer segmentation (K-Means)
