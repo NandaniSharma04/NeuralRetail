@@ -67,7 +67,6 @@ st.set_page_config(
 # --------------------------------------------------------------------------------------
 # Theming (unchanged from before — dark palette, tab bar, KPI card styles)
 # --------------------------------------------------------------------------------------
-
 def apply_theme() -> None:
     st.markdown(f'<link rel="stylesheet" href="{TABLER_ICONS_CSS}">', unsafe_allow_html=True)
     st.markdown(
@@ -87,11 +86,41 @@ def apply_theme() -> None:
         div[data-testid="stToolbar"], #MainMenu, footer {{ display: none !important; visibility: hidden !important; height: 0 !important; }}
         .block-container {{ padding: 1.6rem 2.3rem 3rem 2.3rem; max-width: 1520px; }}
 
-        div[data-baseweb="tab-list"] {{ gap: 4px; border-bottom: 0.5px solid var(--nr-border); }}
-        button[data-baseweb="tab"] {{ height: auto; padding: 10px 16px; background: transparent; border-radius: 0; font-weight: 600; font-size: 14px; color: var(--nr-muted); }}
-        button[data-baseweb="tab"][aria-selected="true"] {{ color: var(--nr-text); border-bottom: 2px solid var(--nr-primary); }}
-        div[data-baseweb="tab-highlight"] {{ background-color: var(--nr-primary) !important; }}
-        div[data-baseweb="tab-panel"] {{ padding-top: 1.4rem; }}
+        /* --- NEW: ST.RADIO TO TABS HACK --- */
+        /* Align the radio group horizontally with a bottom border */
+        div[data-testid="stRadio"] > div[role="radiogroup"] {{
+            flex-direction: row;
+            gap: 4px;
+            border-bottom: 0.5px solid var(--nr-border);
+            padding-bottom: 0;
+        }}
+        /* Hide the default radio circles completely */
+        div[data-testid="stRadio"] div[role="radio"] > div:first-child {{
+            display: none !important;
+        }}
+        /* Style the labels to look like inactive tabs */
+        div[data-testid="stRadio"] div[role="radio"] {{
+            padding: 10px 16px;
+            background: transparent !important;
+            border-radius: 0;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--nr-muted);
+            margin: 0;
+            cursor: pointer;
+        }}
+        /* Style the selected label to look like an active tab */
+        div[data-testid="stRadio"] div[role="radio"][aria-checked="true"],
+        div[data-testid="stRadio"] div[role="radio"][data-checked="true"] {{
+            color: var(--nr-text);
+            border-bottom: 2px solid var(--nr-primary);
+        }}
+        /* Remove hover background on radio buttons */
+        div[data-testid="stRadio"] div[role="radio"]:hover {{
+            background: transparent !important;
+            color: var(--nr-text);
+        }}
+        /* ---------------------------------- */
 
         .nr-header {{ display: flex; align-items: center; gap: 14px; margin-bottom: 0.6rem; }}
         .nr-logo {{ width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0; background: var(--nr-primary); display: flex; align-items: center; justify-content: center; color: #0E1116; font-weight: 800; font-size: 15px; font-family: 'Segoe UI', Arial; }}
@@ -130,7 +159,6 @@ def apply_theme() -> None:
         """,
         unsafe_allow_html=True,
     )
-
 
 # --------------------------------------------------------------------------------------
 # Formatting helpers
@@ -303,7 +331,7 @@ def get_http_session() -> requests.Session:
     return requests.Session()
 
 
-def api_get(path: str, timeout: int = 4) -> tuple[bool, Any]:
+def api_get(path: str, timeout: int = 1) -> tuple[bool, Any]:
     try:
         response = get_http_session().get(f"{API_URL}{path}", timeout=timeout)
         if response.ok:
@@ -315,7 +343,7 @@ def api_get(path: str, timeout: int = 4) -> tuple[bool, Any]:
 
 @st.cache_data(ttl=CACHE_TTL_HEALTH, show_spinner=False)
 def check_api_health() -> tuple[bool, Any]:
-    return api_get("/health", timeout=3)
+    return api_get("/health", timeout=1)
 
 
 # --------------------------------------------------------------------------------------
@@ -445,7 +473,7 @@ def executive_overview(raw: pd.DataFrame, customer: pd.DataFrame, product: pd.Da
 # --------------------------------------------------------------------------------------
 # Page: Demand Intelligence
 # --------------------------------------------------------------------------------------
-
+@st.fragment
 def demand_intelligence(forecast: pd.DataFrame) -> None:
     page_header("SKU forecast explorer with Prophet, LSTM, ensemble, confidence band, and MAPE leaderboard.")
 
@@ -461,19 +489,19 @@ def demand_intelligence(forecast: pd.DataFrame) -> None:
     forecast_type_options = sorted(forecast["forecast_type"].dropna().unique()) if "forecast_type" in forecast else ["demand"]
 
     f1, f2, f3 = st.columns([1, 1.4, 1])
-    selected_type = f1.selectbox("Forecast type", forecast_type_options)
+    selected_type = f1.selectbox("Forecast type", forecast_type_options,key="demand_type")
     filtered = forecast[forecast["forecast_type"] == selected_type] if "forecast_type" in forecast else forecast
 
     skus = filtered["stockcode"].astype(str).dropna().unique().tolist()
     if not skus:
         empty_state("No SKUs available for the selected forecast type.")
         return
-    selected_sku = f2.selectbox("SKU / Series", skus)
+    selected_sku = f2.selectbox("SKU / Series", skus,key="demand_sku")
 
     if filtered["date"].notna().any():
         min_date = filtered["date"].min().date()
         max_date = filtered["date"].max().date()
-        selected_dates = f3.date_input("Date range", value=(min_date, max_date), min_value=min_date, max_value=max_date)
+        selected_dates = f3.date_input("Date range", value=(min_date, max_date), min_value=min_date, max_value=max_date,key="demand_date_range")
     else:
         selected_dates = None
 
@@ -543,11 +571,79 @@ def demand_intelligence(forecast: pd.DataFrame) -> None:
             with st.expander("View raw data"):
                 st.dataframe(view, width="stretch", height=260)
 
-
+@st.cache_resource(show_spinner=False)
+def load_churn_model():
+    import joblib
+    import xgboost as xgb
+    model_json = ROOT_DIR / "models" / "churn_model.json"
+    model_pkl = ROOT_DIR / "models" / "churn_model.pkl"
+    
+    try:
+        model = xgb.XGBClassifier()
+        if model_json.exists():
+            model.load_model(str(model_json))
+            return model
+        elif model_pkl.exists():
+            legacy_model = joblib.load(model_pkl)
+            if hasattr(legacy_model, "save_model"):
+                legacy_model.save_model(str(model_json))
+                model.load_model(str(model_json))
+                return model
+    except Exception as e:
+        print(f"Failed to load model: {e}")
+        return None
+    return None
 # --------------------------------------------------------------------------------------
 # Page: Customer Hub
 # --------------------------------------------------------------------------------------
+@st.fragment
+@st.cache_resource(show_spinner=False)
+def load_churn_model():
+    import joblib
+    import xgboost as xgb
+    model_json = ROOT_DIR / "models" / "churn_model.json"
+    model_pkl = ROOT_DIR / "models" / "churn_model.pkl"
+    model = xgb.XGBClassifier()
+    if model_json.exists():
+        model.load_model(str(model_json))
+        return model
+    if model_pkl.exists():
+        legacy_model = joblib.load(model_pkl)
+        if hasattr(legacy_model, "save_model"):
+            legacy_model.save_model(str(model_json))
+            model.load_model(str(model_json))
+            return model
+        return legacy_model
+    return None
 
+
+@st.cache_data(show_spinner=False)
+def score_churn(customer_df: pd.DataFrame) -> pd.DataFrame:
+    customer_df = customer_df.copy()
+    if "churn_probability" in customer_df.columns and customer_df["churn_probability"].notna().any():
+        return customer_df
+
+    features_list = ["frequency", "monetary", "avg_order_value", "total_quantity",
+                      "unique_products", "tenure", "avg_days_between_purchases"]
+    for f_col in features_list:
+        if f_col not in customer_df.columns:
+            customer_df[f_col] = 0
+
+    try:
+        model = load_churn_model()
+        if model is None:
+            raise ValueError("no model file found")
+        X_infer = customer_df[features_list].fillna(0)
+        customer_df["churn_probability"] = model.predict_proba(X_infer.values)[:, 1]
+    except Exception:
+        np.random.seed(42)
+        customer_df["churn_probability"] = np.random.uniform(0.05, 0.88, size=len(customer_df))
+
+    customer_df["risk_segment"] = np.where(
+        customer_df["churn_probability"] > 0.65, "High Risk",
+        np.where(customer_df["churn_probability"] > 0.25, "Medium Risk", "Low Risk"),
+    )
+    return customer_df
 def customer_hub(customer: pd.DataFrame) -> None:
     page_header("Customer segmentation, churn heatmap, risk tiers, and individual 360 view.")
 
@@ -564,58 +660,31 @@ def customer_hub(customer: pd.DataFrame) -> None:
     # ----------------------------------------------------------------------------------
     customer = customer.copy()
     
-    # Try loading the dynamic SHAP or Churn model to calculate probabilities if empty
-    import joblib
-    import xgboost as xgb
+    # 1. Fetch the model instantly from RAM
+    model = load_churn_model()
     
-    # Check for the native version-agnostic JSON we built or the baseline pkl fallback
-    model_json = ROOT_DIR / "models" / "churn_model.json"
-    model_pkl = ROOT_DIR / "models" / "churn_model.pkl"
-    
-    if ("churn_probability" not in customer.columns or customer["churn_probability"].isna().all()) and (model_json.exists() or model_pkl.exists()):
-        try:
-            model = xgb.XGBClassifier()
-            if model_json.exists():
-                model.load_model(str(model_json))
-            else:
-                legacy_model = joblib.load(model_pkl)
-                if hasattr(legacy_model, "save_model"):
-                    legacy_model.save_model(str(model_json))
-                    model.load_model(str(model_json))
-            
-            # Reconstruct expected 7 features for inference if present, else apply proxy arrays
-            # Required order: Frequency, Monetary, AvgOrderValue, TotalQuantity, UniqueProducts, Tenure, AvgDaysBetweenPurchases
-            features_list = ["frequency", "monetary", "avg_order_value", "total_quantity", "unique_products", "tenure", "avg_days_between_purchases"]
-            
-            # Fill missing required architectural structural feature properties cleanly
-            for f_col in features_list:
-                if f_col not in customer.columns:
-                    customer[f_col] = 0
-            
-            X_infer = customer[[
-                "frequency", "monetary", "avg_order_value", 
-                "total_quantity" if "total_quantity" in customer else "frequency", 
-                "unique_products" if "unique_products" in customer else "frequency",
-                "tenure" if "tenure" in customer else "frequency", 
-                "avg_days_between_purchases" if "avg_days_between_purchases" in customer else "frequency"
-            ]].fillna(0)
-            
+    # 2. Score the customers if they haven't been scored yet
+    if "churn_probability" not in customer.columns or customer["churn_probability"].isna().all():
+        features_list = ["frequency", "monetary", "avg_order_value", "total_quantity", "unique_products", "tenure", "avg_days_between_purchases"]
+        
+        # Ensure all required columns exist to prevent prediction crashes
+        for f_col in features_list:
+            if f_col not in customer.columns:
+                customer[f_col] = 0
+                
+        if model is not None:
+            X_infer = customer[features_list].fillna(0)
             customer["churn_probability"] = model.predict_proba(X_infer.values)[:, 1]
-            customer["risk_segment"] = np.where(customer["churn_probability"] > 0.7, "High Risk", 
-                                       np.where(customer["churn_probability"] > 0.3, "Medium Risk", "Low Risk"))
-        except Exception:
-            # Operational validation fallback values if parsing fails due to schema deviations
+        else:
+            # Fallback if the model completely fails to load
             np.random.seed(42)
             customer["churn_probability"] = np.random.uniform(0.05, 0.88, size=len(customer))
-            customer["risk_segment"] = np.where(customer["churn_probability"] > 0.65, "High Risk", 
-                                       np.where(customer["churn_probability"] > 0.25, "Medium Risk", "Low Risk"))
-    elif "churn_probability" not in customer.columns or customer["churn_probability"].isna().all():
-        # Fallback generation to prevent blank user tables when background infrastructure runs headless
-        np.random.seed(42)
-        customer["churn_probability"] = np.random.uniform(0.02, 0.85, size=len(customer))
-        customer["risk_segment"] = np.where(customer["churn_probability"] > 0.65, "High Risk", 
-                                   np.where(customer["churn_probability"] > 0.25, "Medium Risk", "Low Risk"))
-
+            
+        # Assign risk tiers based on the probabilities
+        customer["risk_segment"] = np.where(
+            customer["churn_probability"] > 0.65, "High Risk", 
+            np.where(customer["churn_probability"] > 0.25, "Medium Risk", "Low Risk")
+        )
     kpi_row([
         {"icon": "ti-users", "label": "Customers", "value": format_number(len(customer))},
         {"icon": "ti-currency-rupee", "label": "Avg monetary", "value": format_money(customer["monetary"].mean())},
@@ -708,7 +777,7 @@ def customer_hub(customer: pd.DataFrame) -> None:
         return
 
     with st.container(border=True):
-        selected_customer = st.selectbox("Select customer", id_options)
+        selected_customer = st.selectbox("Select customer", id_options,key="cust_hub_select")
         row = customer[customer["customer_id"].astype(str) == selected_customer].iloc[0]
         risk_label = str(row.get("risk_segment", "-"))
         badge_class = "nr-badge-danger" if "high" in risk_label.lower() else ("nr-badge-warn" if "medium" in risk_label.lower() else "nr-badge-info")
@@ -736,6 +805,7 @@ def customer_hub(customer: pd.DataFrame) -> None:
 # --------------------------------------------------------------------------------------
 # Page: Inventory Health
 # --------------------------------------------------------------------------------------
+@st.fragment
 def inventory_health(product: pd.DataFrame) -> None:
     page_header("EOQ, reorder points, safety stock, product revenue, and price sensitivity intelligence.")
 
@@ -907,26 +977,19 @@ def inventory_health(product: pd.DataFrame) -> None:
 # --------------------------------------------------------------------------------------
 # Page: MLOps Monitor
 # --------------------------------------------------------------------------------------
-
-def mlops_monitor(metrics: pd.DataFrame) -> None:
+@st.fragment
+def mlops_monitor(metrics: pd.DataFrame, forecast: pd.DataFrame) -> None:
     page_header("Model quality, service health, output freshness, and production-readiness indicators.")
 
     ok, health = check_api_health()
     all_present = all(p.exists() for p in [FORECAST_PATH, PRODUCT_PATH, CUSTOMER_PATH, METRICS_PATH])
     
     # ----------------------------------------------------------------------------------
-    # EXTRACT LIVE DYNAMIC BASELINE METRIC
+    # EXTRACT LIVE DYNAMIC BASELINE METRIC (reuses already-loaded, cached forecast df)
     # ----------------------------------------------------------------------------------
-    if FORECAST_PATH.exists():
-        try:
-            live_forecast_df = pd.read_csv(FORECAST_PATH)
-            if "mape" in live_forecast_df.columns:
-                valid_mapes = pd.to_numeric(live_forecast_df["mape"], errors="coerce").dropna()
-                base_mape = valid_mapes.mean() if not valid_mapes.empty else 7.8
-            else:
-                base_mape = 7.8
-        except Exception:
-            base_mape = 7.8
+    if not forecast.empty and "mape" in forecast.columns:
+        valid_mapes = pd.to_numeric(forecast["mape"], errors="coerce").dropna()
+        base_mape = valid_mapes.mean() if not valid_mapes.empty else 7.8
     else:
         base_mape = 7.8
 
@@ -1060,19 +1123,37 @@ def main() -> None:
     raw, forecast, product, customer, metrics = load_all_data()
 
     brand_header()
-    tabs = st.tabs([f"{icon}  {name}" for name, icon in PAGES])
+    
+    # 1. Create a clean list of page names
+    page_names = [f"{icon}  {name}" for name, icon in PAGES]
+    
+    # 2. Replace st.tabs with a horizontal radio button for navigation
+    # This acts as your new, glitch-free top navigation bar
+    selected_page = st.radio(
+        "Navigation", 
+        options=page_names, 
+        horizontal=True, 
+        label_visibility="collapsed"
+    )
 
+    # 3. Use strict conditional rendering. 
+    # Only the selected page is executed and sent to the browser.
     try:
-        with tabs[0]:
+        if selected_page == page_names[0]:
             executive_overview(raw, customer, product)
-        with tabs[1]:
+            
+        elif selected_page == page_names[1]:
             demand_intelligence(forecast)
-        with tabs[2]:
+            
+        elif selected_page == page_names[2]:
             customer_hub(customer)
-        with tabs[3]:
+            
+        elif selected_page == page_names[3]:
             inventory_health(product)
-        with tabs[4]:
-            mlops_monitor(metrics)
+            
+        elif selected_page == page_names[4]:
+            mlops_monitor(metrics, forecast)
+            
     except Exception as exc:
         st.error("Something went wrong while rendering this page.")
         with st.expander("Error details"):
@@ -1082,7 +1163,6 @@ def main() -> None:
         "<div style='margin-top:2rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.08); color:#6B7280; font-size:0.78rem;'>NeuralRetail Intelligence</div>",
         unsafe_allow_html=True,
     )
-
 
 if __name__ == "__main__":
     main()
