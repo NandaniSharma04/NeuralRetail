@@ -1,14 +1,8 @@
-# Minimal requirements for Streamlit UI only (keeps the build fast on Streamlit Cloud).
-# Heavy ML / backend dependencies have been moved to backend-requirements.txt
-
-streamlit
-pandas
-numpy
-plotly
-altair
-python-dotenv
-joblib
-
-# If the Streamlit app still fails because it imports other heavy packages at module import
-# time, we'll need to lazy-load those imports inside app/streamlit_app.py. I can make
-# that change next if you want.
+streamlit==1.26.0
+pandas==1.5.3
+numpy==1.24.3
+plotly==5.15.0
+altair==4.2.2
+python-dotenv==1.0.0
+joblib==1.2.0
+requests==2.31.0
