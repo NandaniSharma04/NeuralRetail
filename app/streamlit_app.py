@@ -9,6 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+import os
 from auth import *
 from auth import login_user, signup_user, reset_password
 # --------------------------------------------------------------------------------------
@@ -23,8 +24,7 @@ PRODUCT_PATH = ROOT_DIR / "outputs" / "product_intelligence.csv"
 CUSTOMER_PATH = ROOT_DIR / "outputs" / "customer_insights.csv"
 METRICS_PATH = ROOT_DIR / "outputs" / "model_metrics.csv"
 
-API_URL = "http://127.0.0.1:8000"  # used only by MLOps Monitor's Service health panel
-
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 CACHE_TTL_DATA = 600
 CACHE_TTL_HEALTH = 15
 
