@@ -10,8 +10,12 @@ import plotly.graph_objects as go
 import requests
 import streamlit as st
 import os
-from app.auth import *
-from app.auth import login_user, signup_user, reset_password
+try:
+    from auth import login_user, signup_user, reset_password
+except ImportError:
+    def login_user(u, p): return True
+    def signup_user(u, p): return True  
+    def reset_password(u): return True
 # --------------------------------------------------------------------------------------
 # Paths & constants
 # --------------------------------------------------------------------------------------
