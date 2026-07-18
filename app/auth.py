@@ -25,9 +25,6 @@ def create_users_table():
     conn.close()
 
 
-create_users_table()
-
-
 def signup_user(name, email, password):
     email = email.strip().lower()
     conn = sqlite3.connect(DB)
@@ -56,6 +53,7 @@ def signup_user(name, email, password):
 
     return True, "Account created successfully."
 
+
 def login_user(email, password):
 
     conn = sqlite3.connect(DB)
@@ -63,11 +61,11 @@ def login_user(email, password):
 
     email = email.strip().lower()
 
+    # Keep lightweight logging (Streamlit will capture stdout)
     print("Trying Login:", email)
-    print("Password Hash:", hash_password(password))
 
     cur.execute(
-        "SELECT * FROM users WHERE LOWER(email)=? AND password=?",
+        "SELECT * FROM users WHERE LOWER(email)=? AND password= ?",
         (
             email,
             hash_password(password),
@@ -76,11 +74,10 @@ def login_user(email, password):
 
     user = cur.fetchone()
 
-    print("Result:", user)
-
     conn.close()
 
     return user
+
 
 def reset_password(email, new_password):
 
@@ -95,8 +92,6 @@ def reset_password(email, new_password):
     )
 
     user = cur.fetchone()
-
-    print("User Found:", user)
 
     if not user:
         conn.close()
@@ -113,6 +108,10 @@ def reset_password(email, new_password):
     conn.commit()
     conn.close()
 
-    print("Password Updated")
-
     return True
+
+
+if __name__ == "__main__":
+    # Create the users table when running this module directly for CLI setup/testing.
+    create_users_table()
+    print("Users table created (if it did not exist).")
