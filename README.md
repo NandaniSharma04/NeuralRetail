@@ -82,6 +82,7 @@ Use the instructions below to spin up the distributed microservices on your loca
 ### 🚀 Option A: One-Click Automation Launch (Windows)
 
 If you are on Windows, you can bypass manual terminal commands entirely by executing the orchestration batch script in the root directory:
+
 ### Initialize the Streamlit Frontend Web Dashboard:
 py -3.13 -m streamlit run app\streamlit_app.py or streamlit run app\streamlit_app.py
 

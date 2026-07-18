@@ -1,20 +1,20 @@
 ﻿from __future__ import annotations
-
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Iterable
-
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import requests
 import streamlit as st
-
+from auth import *
+from auth import login_user, signup_user, reset_password
 # --------------------------------------------------------------------------------------
 # Paths & constants
 # --------------------------------------------------------------------------------------
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT_DIR / "data" / "processed" / "processed_data.csv"
@@ -31,20 +31,33 @@ CACHE_TTL_HEALTH = 15
 TABLER_ICONS_CSS = "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css"
 
 BRAND = {
-    "primary": "#FF6B35",
-    "secondary": "#FFA45B",
-    "text": "#E8E6E3",
-    "muted": "#9CA3AF",
-    "bg": "#0E1116",
-    "card": "#161B22",
-    "border": "rgba(255,255,255,0.09)",
-    "good": "#3DD68C",
-    "warn": "#F5B942",
-    "bad": "#FF6B6B",
-    "blue": "#4C9FEF",
-    "amber": "#F5B942",
-}
 
+    # Brand
+    "primary": "#F64708",
+    "secondary": "#FF9F43",
+
+    # Text
+    "text": "#E5E7EB",
+    "muted": "#94A3B8",
+    "heading": "#FFFFFF",
+
+    # Background
+    "bg": "#05070A",
+    "card": "#111827",
+    "card_hover": "#1B263E",
+    "border": "rgba(255,255,255,0.10)",
+
+    # Status
+    "good": "#22C55E",
+    "warn": "#F59E0B",
+    "bad": "#EF4444",
+
+    # Charts
+    "blue": "#3B82F6",
+    "amber": "#F59E0B",
+    "purple": "#A855F7",
+    "green": "#22C55E",
+}
 HEAT_SCALE = ["#241A1A", "#4A2A26", "#7A3B2E", "#B84D34", "#F5643A"]
 MAPE_SCALE = ["#3DD68C", "#F5B942", "#FF6B6B"]
 
@@ -54,7 +67,13 @@ PAGES = [
     ("Customer Hub", "👥"),
     ("Inventory Health", "📦"),
     ("MLOps Monitor", "🛠️"),
+    ("Regional Sales", "🌍"),
+    ("Revenue Analysis", "💰"),
+    ("Order & Transaction", "🧾"),
+    ("Sales Trend Analysis", "📉"),
 ]
+
+PAGE_NAMES = [f"{icon}  {name}" for name, icon in PAGES]
 
 st.set_page_config(
     page_title="NeuralRetail Intelligence",
@@ -64,101 +83,1092 @@ st.set_page_config(
 )
 
 
+#--------
+#login page
+#------
+
+def login_theme():
+
+    st.markdown(
+        f"""
+<style>
+
+html,body,[data-testid="stAppViewContainer"]{{
+    background:{BRAND["bg"]};
+}}
+
+header[data-testid="stHeader"]{{
+    display:none;
+}}
+
+#MainMenu,footer{{
+    visibility:hidden;
+}}
+
+.block-container{{
+    padding-top:0rem;
+    max-width:100%;
+}}
+
+.login-wrapper{{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:90vh;
+}}
+
+.login-card{{
+    width:430px;
+    background:{BRAND["card"]};
+    border:1px solid {BRAND["border"]};
+    border-radius:18px;
+    padding:40px;
+    box-shadow:0 12px 40px rgba(0,0,0,.45);
+}}
+
+.login-logo{{
+    width:70px;
+    height:70px;
+    border-radius:16px;
+    background:{BRAND["primary"]};
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    color:black;
+    font-size:28px;
+    font-weight:800;
+    margin:auto;
+}}
+
+.login-title{{
+    color:{BRAND["heading"]};
+    font-size:32px;
+    font-weight:800;
+    text-align:center;
+    margin-top:18px;
+}}
+
+.login-sub{{
+    color:{BRAND["muted"]};
+    text-align:center;
+    margin-bottom:35px;
+}}
+
+.stTextInput input{{
+    background:#0B1220;
+    color:white;
+    border:1px solid {BRAND["border"]};
+    border-radius:10px;
+}}
+
+.stButton button{{
+    width:100%;
+    background:{BRAND["primary"]};
+    color:white;
+    border:none;
+    border-radius:10px;
+    height:48px;
+    font-size:16px;
+    font-weight:700;
+}}
+
+.stButton button:hover{{
+    background:{BRAND["secondary"]};
+}}
+
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def login():
+
+    login_theme()
+
+    st.markdown(
+        """
+        <div class="login-wrapper">
+            <div class="login-card">
+                <div class="login-logo">NR</div>
+                <div class="login-title">NeuralRetail</div>
+                <div class="login-sub">
+                    AI Sales Intelligence Platform
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # --------- TABS GO HERE ----------
+    tab1, tab2, tab3 = st.tabs(
+        [
+            "🔑 Login",
+            "📝 Sign Up",
+            "🔒 Forgot Password",
+        ]
+    )
+
+    # ================= LOGIN =================
+
+    with tab1:
+
+        email = st.text_input(
+            "Email",
+            key="login_email",
+        )
+
+        password = st.text_input(
+            "Password",
+            type="password",
+            key="login_password",
+        )
+
+        if st.button(
+            "Login",
+            use_container_width=True,
+        ):
+
+            user = login_user(email, password)
+
+            if user:
+
+                st.session_state.logged_in = True
+                st.session_state.username = user[1]
+                st.rerun()
+
+            else:
+
+                st.error("Invalid email or password.")
+
+    # ================= SIGN UP =================
+
+    with tab2:
+
+        name = st.text_input(
+            "Full Name",
+            key="signup_name",
+        )
+
+        email = st.text_input(
+            "Email",
+            key="signup_email",
+        )
+
+        password = st.text_input(
+            "Password",
+            type="password",
+            key="signup_password",
+        )
+
+        if st.button(
+            "Create Account",
+            use_container_width=True,
+        ):
+
+            ok, msg = signup_user(
+                name,
+                email,
+                password,
+            )
+
+            if ok:
+                st.success(msg)
+            else:
+                st.error(msg)
+
+    # ================= FORGOT PASSWORD =================
+
+    with tab3:
+
+        email = st.text_input(
+            "Registered Email",
+            key="forgot_email",
+        )
+
+        new_password = st.text_input(
+            "New Password",
+            type="password",
+            key="forgot_password",
+        )
+
+        if st.button(
+            "Reset Password",
+            use_container_width=True,
+        ):
+
+            ok = reset_password(
+                email,
+                new_password,
+            )
+
+            if ok:
+                st.success("Password updated successfully.")
+            else:
+                st.error("Email not found.")
+
 # --------------------------------------------------------------------------------------
 # Theming (unchanged from before — dark palette, tab bar, KPI card styles)
 # --------------------------------------------------------------------------------------
 def apply_theme() -> None:
-    st.markdown(f'<link rel="stylesheet" href="{TABLER_ICONS_CSS}">', unsafe_allow_html=True)
+
     st.markdown(
         f"""
-        <style>
-        :root {{
-            --nr-primary: {BRAND['primary']};
-            --nr-text: {BRAND['text']};
-            --nr-muted: {BRAND['muted']};
-            --nr-card: {BRAND['card']};
-            --nr-border: {BRAND['border']};
-            --nr-good: {BRAND['good']};
-            --nr-warn: {BRAND['warn']};
-            --nr-bad: {BRAND['bad']};
-        }}
-        header[data-testid="stHeader"] {{ display: none; }}
-        div[data-testid="stToolbar"], #MainMenu, footer {{ display: none !important; visibility: hidden !important; height: 0 !important; }}
-        .block-container {{ padding: 1.6rem 2.3rem 3rem 2.3rem; max-width: 1520px; }}
+<link rel="stylesheet" href="{TABLER_ICONS_CSS}">
 
-        /* --- NEW: ST.RADIO TO TABS HACK --- */
-        /* Align the radio group horizontally with a bottom border */
-        div[data-testid="stRadio"] > div[role="radiogroup"] {{
-            flex-direction: row;
-            gap: 4px;
-            border-bottom: 0.5px solid var(--nr-border);
-            padding-bottom: 0;
-        }}
-        /* Hide the default radio circles completely */
-        div[data-testid="stRadio"] div[role="radio"] > div:first-child {{
-            display: none !important;
-        }}
-        /* Style the labels to look like inactive tabs */
-        div[data-testid="stRadio"] div[role="radio"] {{
-            padding: 10px 16px;
-            background: transparent !important;
-            border-radius: 0;
-            font-weight: 600;
-            font-size: 14px;
-            color: var(--nr-muted);
-            margin: 0;
-            cursor: pointer;
-        }}
-        /* Style the selected label to look like an active tab */
-        div[data-testid="stRadio"] div[role="radio"][aria-checked="true"],
-        div[data-testid="stRadio"] div[role="radio"][data-checked="true"] {{
-            color: var(--nr-text);
-            border-bottom: 2px solid var(--nr-primary);
-        }}
-        /* Remove hover background on radio buttons */
-        div[data-testid="stRadio"] div[role="radio"]:hover {{
-            background: transparent !important;
-            color: var(--nr-text);
-        }}
-        /* ---------------------------------- */
+<style>
 
-        .nr-header {{ display: flex; align-items: center; gap: 14px; margin-bottom: 0.6rem; }}
-        .nr-logo {{ width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0; background: var(--nr-primary); display: flex; align-items: center; justify-content: center; color: #0E1116; font-weight: 800; font-size: 15px; font-family: 'Segoe UI', Arial; }}
-        .nr-brand-title {{ font-size: 1.35rem; font-weight: 800; color: var(--nr-text); margin: 0; line-height: 1.1; }}
-        .nr-brand-sub {{ font-size: 0.82rem; color: var(--nr-muted); margin: 0; }}
+/* ===========================================================
+   ROOT
+=========================================================== */
 
-        .nr-kpi {{ background: var(--nr-card); border: 0.5px solid var(--nr-border); border-radius: 12px; padding: 14px 16px; height: 100%; }}
-        .nr-kpi-top {{ display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }}
-        .nr-kpi-icon {{ width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }}
-        .nr-kpi-icon i {{ font-size: 15px; color: var(--nr-primary); }}
-        .nr-kpi-label {{ font-size: 12.5px; font-weight: 600; color: var(--nr-muted); }}
-        .nr-kpi-value {{ font-size: 24px; font-weight: 800; color: var(--nr-text); line-height: 1.1; }}
-        .nr-kpi-delta {{ font-size: 12px; margin-top: 6px; font-weight: 600; }}
+:root {{
 
-        .nr-subtitle {{ color: var(--nr-muted); margin-bottom: 0.2rem; font-size: 0.98rem; font-weight: 500; }}
-        .nr-freshness {{ color: #6B7280; font-size: 0.78rem; margin-bottom: 1rem; }}
-        .nr-section-title {{ display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; margin: 0.4rem 0 0.6rem; color: var(--nr-text); }}
-        .nr-section-title i {{ font-size: 15px; color: var(--nr-primary); }}
+    --bg:#05070A;
+    --sidebar:#080B12;
 
-        .nr-badge {{ display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700; margin: 2px 6px 2px 0; }}
-        .nr-badge-danger {{ background: rgba(255,107,107,0.15); color: #FF9B9B; }}
-        .nr-badge-warn {{ background: rgba(245,185,66,0.15); color: #FFCE7A; }}
-        .nr-badge-info {{ background: rgba(76,159,239,0.15); color: #8FC2FA; }}
-        .nr-badge-good {{ background: rgba(61,214,140,0.15); color: #8CEFC2; }}
+    --card:#111827;
+    --card-hover:#172033;
 
-        .nr-row {{ display: flex; align-items: center; gap: 12px; padding: 9px 4px; border-bottom: 0.5px solid var(--nr-border); }}
-        .nr-row:last-child {{ border-bottom: none; }}
-        .nr-row-title {{ font-weight: 600; font-size: 13px; color: var(--nr-text); min-width: 140px; }}
-        .nr-row-sub {{ color: var(--nr-muted); font-size: 12px; flex: 1; }}
+    --border:rgba(255,255,255,.08);
 
-        .nr-empty {{ border: 1px dashed var(--nr-border); border-radius: 10px; padding: 28px; text-align: center; color: var(--nr-muted); background: rgba(255,255,255,0.02); }}
+    --text:#E5E7EB;
+    --muted:#94A3B8;
 
-        .stButton button, .stDownloadButton button {{ border-radius: 6px; border: 1px solid var(--nr-primary); color: #0E1116; background: var(--nr-primary); font-weight: 650; }}
-        .stButton button:hover, .stDownloadButton button:hover {{ opacity: 0.88; }}
-        </style>
-        """,
-        unsafe_allow_html=True,
+    --primary:#FF6B35;
+
+    --success:#22C55E;
+    --warning:#F59E0B;
+    --danger:#EF4444;
+
+}}
+
+/* ===========================================================
+   APP
+=========================================================== */
+
+html,
+body,
+.stApp,
+[data-testid="stAppViewContainer"] {{
+
+    background:var(--bg);
+    color:var(--text);
+
+}}
+
+header[data-testid="stHeader"] {{
+
+    background:transparent;
+
+}}
+
+#MainMenu {{
+    visibility:hidden;
+}}
+
+footer {{
+    visibility:hidden;
+}}
+
+/* ===========================================================
+   SIDEBAR
+=========================================================== */
+
+section[data-testid="stSidebar"] {{
+
+    background:var(--sidebar);
+    border-right:1px solid var(--border);
+
+}}
+
+section[data-testid="stSidebar"] * {{
+
+    color:var(--text);
+
+}}
+
+section[data-testid="stSidebar"] button {{
+
+    width:100%;
+
+    border-radius:12px;
+
+    padding:10px 12px;
+
+    margin-bottom:6px;
+
+    background:transparent;
+
+    border:1px solid transparent;
+
+    transition:.18s;
+
+}}
+
+section[data-testid="stSidebar"] button:hover {{
+
+    background:#1F2937;
+
+    border-color:var(--primary);
+
+}}
+
+/* ===========================================================
+   SIDEBAR BRAND
+=========================================================== */
+
+.nr-sidebar-brand {{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:14px;
+
+    padding-bottom:12px;
+
+}}
+
+.nr-logo {{
+
+    width:50px;
+
+    height:50px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    border-radius:14px;
+
+    background:var(--primary);
+
+    color:white;
+
+    font-size:20px;
+
+    font-weight:900;
+
+    flex-shrink:0;
+
+}}
+
+.nr-brand-title {{
+
+    color:white !important;
+
+    font-size:19px;
+
+    font-weight:800;
+
+    line-height:1.15;
+
+    margin:0;
+
+}}
+
+.nr-brand-sub {{
+
+    display:block;
+
+    color:#94A3B8 !important;
+
+    font-size:12px;
+
+    line-height:1.35;
+
+    margin-top:3px;
+
+    opacity:1;
+
+}}
+
+/* ===========================================================
+   EXECUTIVE HEADER
+=========================================================== */
+
+.nr-header {{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:18px;
+
+    padding:24px 28px;
+
+    margin-bottom:28px;
+
+    background:#111827;
+
+    border:1px solid var(--border);
+
+    border-radius:22px;
+
+    box-shadow:0 12px 30px rgba(0,0,0,.35);
+
+}}
+
+.nr-header .nr-logo {{
+
+    width:58px;
+
+    height:58px;
+
+    font-size:22px;
+
+}}
+
+.nr-header .nr-brand-title {{
+
+    font-size:25px;
+
+}}
+
+.nr-header .nr-brand-sub {{
+
+    font-size:15px;
+
+}}
+
+/* ===========================================================
+   PAGE HEADER
+=========================================================== */
+
+.nr-page-header {{
+
+    margin-bottom:30px;
+
+}}
+
+.nr-page-title {{
+display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:42px;   /* was 46px */
+    font-weight:800;
+    flex-wrap:nowrap;
+
+}}
+
+.nr-page-title i {{
+
+    color:var(--primary);
+
+    margin-right:12px;
+
+}}
+
+.nr-subtitle {{
+
+    color:#94A3B8;
+
+    font-size:17px;
+
+    margin-bottom:8px;
+
+}}
+
+.nr-freshness {{
+
+    color:#64748B;
+
+    font-size:13px;
+
+    margin-bottom:8px;
+
+}}
+
+
+/* Navigation buttons */
+.stSidebar .stButton > button{{
+    width:100%;
+    height:46px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.08);
+    background:#111827;
+    color:#CBD5E1;
+    font-size:15px;
+    font-weight:600;
+    text-align:left;
+    padding-left:18px;
+    transition:.2s;
+}}
+
+/* Hover */
+.stSidebar .stButton > button:hover{{
+    border-color:#FF6B35;
+    color:white;
+}}
+
+/* ACTIVE button (type="primary") */
+.stSidebar .stButton > button[kind="primary"]{{
+    background:#FF6B35 !important;
+    color:white !important;
+    border:none !important;
+    font-weight:700;
+    box-shadow:0 0 0 2px rgba(255,107,53,.25);
+}}
+/* ===========================================================
+   SECTION TITLES
+=========================================================== */
+
+.nr-section-title{{
+
+    color:#FFFFFF;
+
+    font-size:24px;
+
+    font-weight:750;
+
+    margin-top:34px;
+
+    margin-bottom:20px;
+
+}}
+
+.nr-section-title i{{
+
+    color:var(--primary);
+
+    margin-right:10px;
+
+}}
+
+/* ===========================================================
+   KPI CARDS
+=========================================================== */
+
+.nr-kpi{{
+
+    background:var(--card);
+
+    border:1px solid var(--border);
+
+    border-radius:20px;
+
+    padding:22px;
+
+    min-height:140px;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.35);
+
+    transition:all .2s ease;
+
+}}
+
+.nr-kpi:hover{{
+
+    background:var(--card-hover);
+
+    transform:translateY(-4px);
+
+}}
+
+.nr-kpi-top{{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+}}
+
+.nr-kpi-icon{{
+
+    width:40px;
+
+    height:40px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    border-radius:12px;
+
+    background:#1F2937;
+
+    color:var(--primary);
+
+    font-size:18px;
+
+}}
+
+.nr-kpi-label{{
+
+    color:#94A3B8;
+
+    font-size:14px;
+
+    font-weight:500;
+
+}}
+
+.nr-kpi-value{{
+
+    margin-top:18px;
+
+    color:#FFFFFF;
+
+    font-size:32px;
+
+    font-weight:850;
+
+}}
+
+.nr-kpi-delta{{
+
+    margin-top:8px;
+
+    font-size:13px;
+
+}}
+
+/* ===========================================================
+   STREAMLIT METRICS
+=========================================================== */
+
+div[data-testid="metric-container"]{{
+
+    background:var(--card);
+
+    border:1px solid var(--border);
+
+    border-radius:18px;
+
+    padding:18px;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.25);
+
+}}
+
+div[data-testid="metric-container"] label{{
+
+    color:#94A3B8;
+
+    font-size:14px;
+
+}}
+
+div[data-testid="metric-container"] div{{
+
+    color:#FFFFFF;
+
+}}
+
+/* ===========================================================
+   INPUTS
+=========================================================== */
+
+input,
+textarea{{
+
+    background:#111827 !important;
+
+    color:white !important;
+
+    border:1px solid #334155 !important;
+
+    border-radius:10px !important;
+
+}}
+
+[data-baseweb="select"]>div{{
+
+    background:#111827 !important;
+
+    border:1px solid #334155 !important;
+
+    border-radius:10px;
+
+}}
+
+.stSelectbox label,
+.stMultiSelect label,
+.stSlider label{{
+
+
+    color:#CBD5E1;
+
+}}
+
+/* ===========================================================
+   BUTTONS
+=========================================================== */
+
+.stButton>button{{
+
+    border-radius:12px;
+
+    border:1px solid var(--border);
+
+    background:#111827;
+
+    color:white;
+
+    transition:.2s;
+
+}}
+
+.stButton>button:hover{{
+
+    border-color:var(--primary);
+
+    color:white;
+
+}}
+
+/* ===========================================================
+   DOWNLOAD BUTTON
+=========================================================== */
+
+.stDownloadButton>button{{
+
+    border-radius:12px;
+
+    background:#111827;
+
+    border:1px solid var(--border);
+
+    color:white;
+
+}}
+
+.stDownloadButton>button:hover{{
+
+    border-color:var(--primary);
+
+}}
+
+/* ===========================================================
+   TABLES
+=========================================================== */
+
+[data-testid="stDataFrame"]{{
+
+    border-radius:16px;
+
+    overflow:hidden;
+
+    border:1px solid var(--border);
+
+}}
+
+table{{
+
+    color:white;
+
+}}
+
+/* ===========================================================
+   PLOTLY
+=========================================================== */
+
+.js-plotly-plot{{
+
+    background:#111827;
+
+    border-radius:18px;
+
+    padding:10px;
+
+}}
+
+/* ===========================================================
+   ALERTS
+=========================================================== */
+
+.stAlert{{
+
+    border-radius:14px;
+
+}}
+
+.nr-empty{{
+
+    background:#111827;
+
+    border:1px solid var(--border);
+
+    border-radius:16px;
+
+    padding:24px;
+
+    color:#94A3B8;
+
+}}
+
+
+
+
+/* ===========================================================
+   BADGES
+=========================================================== */
+
+.nr-badge{{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    padding:6px 12px;
+
+    border-radius:999px;
+
+    font-size:12px;
+
+    font-weight:600;
+
+    margin-right:8px;
+
+    margin-bottom:8px;
+
+}}
+
+.nr-badge-good{{
+
+    background:rgba(34,197,94,.15);
+
+    color:#22C55E;
+
+}}
+
+.nr-badge-warn{{
+
+    background:rgba(245,158,11,.15);
+
+    color:#F59E0B;
+
+}}
+
+.nr-badge-danger{{
+
+    background:rgba(239,68,68,.15);
+
+    color:#EF4444;
+
+}}
+
+.nr-badge-info{{
+
+    background:rgba(59,130,246,.15);
+
+    color:#60A5FA;
+
+}}
+
+/* ===========================================================
+   INFO ROW
+=========================================================== */
+
+.nr-row{{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:14px;
+
+    background:#111827;
+
+    border:1px solid rgba(255,255,255,.08);
+
+    border-radius:16px;
+
+    padding:16px 18px;
+
+    margin-bottom:10px;
+
+}}
+
+.nr-row-title{{
+
+    font-size:15px;
+
+    font-weight:700;
+
+    color:white;
+
+}}
+
+.nr-row-sub{{
+
+    color:#94A3B8;
+
+    font-size:13px;
+
+    margin-left:auto;
+
+}}
+
+/* ===========================================================
+   EXPANDER
+=========================================================== */
+
+.streamlit-expanderHeader{{
+
+    background:#111827;
+
+    border-radius:12px;
+
+    color:white;
+
+}}
+
+/* ===========================================================
+   TABS
+=========================================================== */
+
+button[data-baseweb="tab"]{{
+
+    background:#111827;
+
+    color:#CBD5E1;
+
+    border-radius:12px 12px 0 0;
+
+}}
+
+button[data-baseweb="tab"][aria-selected="true"]{{
+
+    color:white;
+
+    border-bottom:2px solid #FF6B35;
+
+}}
+
+/* ===========================================================
+   PROGRESS
+=========================================================== */
+
+.stProgress > div > div{{
+
+    background:#FF6B35;
+
+}}
+
+/* ===========================================================
+   CHECKBOX / RADIO
+=========================================================== */
+
+.stCheckbox label{{
+
+    color:white;
+
+}}
+
+.stRadio label{{
+
+    color:white;
+
+}}
+
+/* ===========================================================
+   SCROLLBAR
+=========================================================== */
+
+::-webkit-scrollbar{{
+
+    width:10px;
+
+    height:10px;
+
+}}
+
+::-webkit-scrollbar-track{{
+
+    background:#0F172A;
+
+}}
+
+::-webkit-scrollbar-thumb{{
+
+    background:#334155;
+
+    border-radius:20px;
+
+}}
+
+::-webkit-scrollbar-thumb:hover{{
+
+    background:#475569;
+
+}}
+
+/* ===========================================================
+   HORIZONTAL RULE
+=========================================================== */
+
+hr{{
+
+    border:none;
+
+    border-top:1px solid rgba(255,255,255,.08);
+
+}}
+
+/* ===========================================================
+   LINKS
+=========================================================== */
+
+a{{
+
+    color:#60A5FA;
+
+    text-decoration:none;
+
+}}
+
+a:hover{{
+
+    color:#93C5FD;
+
+}}
+
+/* ===========================================================
+   IMAGE
+=========================================================== */
+
+img{{
+
+    border-radius:12px;
+
+}}
+
+/* ===========================================================
+   CODE BLOCK
+=========================================================== */
+
+pre{{
+
+    border-radius:14px;
+
+    border:1px solid rgba(255,255,255,.08);
+
+}}
+
+/* ===========================================================
+   END CSS
+=========================================================== */
+
+</style>
+""",
+unsafe_allow_html=True,
     )
+
+
+
+
+
+
+
 
 # --------------------------------------------------------------------------------------
 # Formatting helpers
@@ -204,6 +1214,12 @@ def guard_columns(df: pd.DataFrame, required: Iterable[str], label: str) -> bool
         st.error(f"'{label}' is missing expected column(s): {', '.join(missing)}")
         return False
     return True
+
+
+
+
+
+
 
 
 # All HTML below is built as SINGLE-LINE strings on purpose. Streamlit's markdown
@@ -300,20 +1316,53 @@ def data_freshness_caption() -> str:
 # --------------------------------------------------------------------------------------
 
 def plotly_layout(fig: go.Figure, height: int = 390) -> go.Figure:
-    fig.update_layout(
-        height=height,
-        paper_bgcolor=BRAND["card"],
-        plot_bgcolor=BRAND["card"],
-        font=dict(color=BRAND["text"], family="Segoe UI, Arial"),
-        margin=dict(l=24, r=24, t=54, b=30),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color=BRAND["muted"])),
-        hovermode="x unified",
-        title_font=dict(size=16, color=BRAND["text"]),
-    )
-    fig.update_xaxes(showgrid=True, gridcolor="rgba(255,255,255,0.06)", color=BRAND["muted"])
-    fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.06)", color=BRAND["muted"])
-    return fig
 
+    fig.update_layout(
+
+        height=height,
+
+        paper_bgcolor="#111827",
+
+        plot_bgcolor="#111827",
+
+        font=dict(
+            color="#E5E7EB",
+            family="Segoe UI"
+        ),
+
+        title_font=dict(
+            size=20,
+            color="white"
+        ),
+
+        margin=dict(
+            l=25,
+            r=25,
+            t=55,
+            b=30
+        ),
+
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#CBD5E1")
+        )
+
+    )
+
+
+    fig.update_xaxes(
+        gridcolor="rgba(255,255,255,0.05)",
+        color="#94A3B8"
+    )
+
+
+    fig.update_yaxes(
+        gridcolor="rgba(255,255,255,0.05)",
+        color="#94A3B8"
+    )
+
+
+    return fig
 
 def to_excel_bytes(df: pd.DataFrame, sheet_name: str = "data") -> bytes:
     buffer = BytesIO()
@@ -349,45 +1398,170 @@ def check_api_health() -> tuple[bool, Any]:
 # --------------------------------------------------------------------------------------
 # Sidebar & headers
 # --------------------------------------------------------------------------------------
-
 def sidebar() -> None:
-    st.sidebar.markdown(
-        "<div style='display:flex;align-items:center;gap:10px;margin-bottom:2px;'>"
-        "<div class='nr-logo'>NR</div>"
-        "<div><p class='nr-brand-title' style='font-size:1.05rem;'>NeuralRetail</p>"
-        "<p class='nr-brand-sub'>AI sales intelligence</p></div></div>",
-        unsafe_allow_html=True,
+
+    with st.sidebar:
+
+        st.html("""
+        <div class="nr-sidebar-brand">
+
+            <div class="nr-logo">
+                NR
+            </div>
+
+            <div>
+                <div class="nr-brand-title">
+                    NeuralRetail
+                </div>
+
+                <div class="nr-brand-sub">
+                    AI Sales Intelligence
+                </div>
+            </div>
+
+        </div>
+        """)
+
+        st.divider()
+
+        # ---------------- Logout ----------------
+        if st.button(
+            "🚪 Logout",
+            use_container_width=True,
+        ):
+            st.session_state.logged_in = False
+            st.rerun()
+
+        st.divider()
+
+        # ---------------- Navigation ----------------
+        st.markdown(
+            """
+            <div class="nr-section-title" style="margin-top:0;margin-bottom:15px;">
+                <i class="ti ti-layout-grid"></i>
+                Dashboards
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        current_page = st.session_state.get(
+            "nr_nav_radio",
+            PAGE_NAMES[0],
+        )
+
+        for page in PAGE_NAMES:
+
+            active = page == current_page
+
+            if st.button(
+                page,
+                key=f"nav_{page}",
+                use_container_width=True,
+                type="primary" if active else "secondary",
+            ):
+                st.session_state["nr_nav_radio"] = page
+                st.rerun()
+
+        st.divider()
+
+        st.caption(
+            data_freshness_caption()
+        )
+
+        if st.button(
+            "🔄 Refresh Data",
+            use_container_width=True,
+        ):
+            load_all_data.clear()
+            load_csv.clear()
+            check_api_health.clear()
+            st.rerun()
+
+def brand_header():
+
+    html = (
+        '<div class="nr-header">'
+        '<div class="nr-logo">NR</div>'
+        '<div>'
+        '<div class="nr-brand-title">NeuralRetail Intelligence</div>'
+        '<div class="nr-brand-sub">End-to-End AI Sales Intelligence Platform</div>'
+        '</div>'
+        '</div>'
     )
-    st.sidebar.divider()
-    st.sidebar.caption(data_freshness_caption())
-    if st.sidebar.button("Refresh data", icon="🔄", width="stretch"):
-        load_all_data.clear()
-        load_csv.clear()
-        check_api_health.clear()
-        st.rerun()
+
+    st.markdown(html, unsafe_allow_html=True)
 
 
-def brand_header() -> None:
-    st.markdown(
-        "<div class='nr-header'><div class='nr-logo'>NR</div>"
-        "<div><p class='nr-brand-title'>NeuralRetail Intelligence</p>"
-        "<p class='nr-brand-sub'>End-to-end AI sales intelligence platform</p></div></div>",
-        unsafe_allow_html=True,
+
+def page_header(
+    title: str,
+    subtitle: str,
+    icon: str = "ti-layout-dashboard",
+    show_freshness: bool = True,
+):
+
+    freshness = ""
+    if show_freshness:
+        freshness = (
+            f'<div class="nr-freshness">{data_freshness_caption()}</div>'
+        )
+
+    html = (
+        f'<div class="nr-page-header">'
+        f'<div class="nr-page-title"><i class="ti {icon}"></i> {title}</div>'
+        f'<div class="nr-subtitle">{subtitle}</div>'
+        f'{freshness}'
+        f'</div>'
     )
 
-
-def page_header(subtitle: str) -> None:
-    st.markdown(f"<div class='nr-subtitle'>{subtitle}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='nr-freshness'>{data_freshness_caption()}</div>", unsafe_allow_html=True)
+    st.markdown(html, unsafe_allow_html=True)
 
 
+
+
+
+
+def plotly_dark(fig):
+
+    fig.update_layout(
+
+        template="plotly_dark",
+
+        paper_bgcolor="#111827",
+
+        plot_bgcolor="#111827",
+
+        font=dict(
+            color="#E5E7EB",
+            family="Inter"
+        ),
+
+        title_font=dict(
+            size=22,
+            color="#FFFFFF"
+        ),
+
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)"
+        ),
+
+        margin=dict(
+            l=20,
+            r=20,
+            t=50,
+            b=20
+        )
+
+    )
+
+    return fig
 # --------------------------------------------------------------------------------------
 # Page: Executive Overview
 # --------------------------------------------------------------------------------------
 
 def executive_overview(raw: pd.DataFrame, customer: pd.DataFrame, product: pd.DataFrame) -> None:
-    page_header("Portfolio-level revenue, customer, product, and forecast performance signals.")
-
+    
     if raw.empty:
         empty_state(f"Processed data file is missing. Expected <code>{DATA_PATH}</code>", "⚠️")
         return
@@ -475,8 +1649,7 @@ def executive_overview(raw: pd.DataFrame, customer: pd.DataFrame, product: pd.Da
 # --------------------------------------------------------------------------------------
 @st.fragment
 def demand_intelligence(forecast: pd.DataFrame) -> None:
-    page_header("SKU forecast explorer with Prophet, LSTM, ensemble, confidence band, and MAPE leaderboard.")
-
+    
     if forecast.empty:
         empty_state(f"Forecast output is missing. Expected <code>{FORECAST_PATH}</code>", "⚠️")
         return
@@ -644,9 +1817,9 @@ def score_churn(customer_df: pd.DataFrame) -> pd.DataFrame:
         np.where(customer_df["churn_probability"] > 0.25, "Medium Risk", "Low Risk"),
     )
     return customer_df
-def customer_hub(customer: pd.DataFrame) -> None:
-    page_header("Customer segmentation, churn heatmap, risk tiers, and individual 360 view.")
 
+def customer_hub(customer: pd.DataFrame) -> None:
+    
     if customer.empty:
         empty_state(f"Customer output is missing. Expected <code>{CUSTOMER_PATH}</code>", "⚠️")
         return
@@ -807,8 +1980,7 @@ def customer_hub(customer: pd.DataFrame) -> None:
 # --------------------------------------------------------------------------------------
 @st.fragment
 def inventory_health(product: pd.DataFrame) -> None:
-    page_header("EOQ, reorder points, safety stock, product revenue, and price sensitivity intelligence.")
-
+    
     if product.empty:
         empty_state(f"Product output is missing. Expected <code>{PRODUCT_PATH}</code>", "⚠️")
         return
@@ -840,7 +2012,7 @@ def inventory_health(product: pd.DataFrame) -> None:
             
             st.markdown(
                 f"""
-                <div style="background-color: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.15);
+                <div style= "background-color: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.15);
                             padding: 16px; border-radius: 8px; margin-bottom: 24px;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
                         <i class="ti ti-alert-octagon" style="color: #FF6B6B; font-size: 18px;"></i>
@@ -979,7 +2151,6 @@ def inventory_health(product: pd.DataFrame) -> None:
 # --------------------------------------------------------------------------------------
 @st.fragment
 def mlops_monitor(metrics: pd.DataFrame, forecast: pd.DataFrame) -> None:
-    page_header("Model quality, service health, output freshness, and production-readiness indicators.")
 
     ok, health = check_api_health()
     all_present = all(p.exists() for p in [FORECAST_PATH, PRODUCT_PATH, CUSTOMER_PATH, METRICS_PATH])
@@ -1114,55 +2285,753 @@ def mlops_monitor(metrics: pd.DataFrame, forecast: pd.DataFrame) -> None:
     if ensemble_chart_mape <= 10:
         st.toast("Production Target Met! Forecast engine optimized below 10% threshold.", icon="🚀")
 # --------------------------------------------------------------------------------------
+# Page: Regional Sales
+# --------------------------------------------------------------------------------------
+@st.fragment
+def regional_sales(raw: pd.DataFrame) -> None:
+    if raw.empty:
+        empty_state(f"Processed data file is missing. Expected <code>{DATA_PATH}</code>", "⚠️")
+        return
+    required = [
+        "country",
+        "total_amount",
+        "customer_id",
+        "invoice"
+    ]
+    if not guard_columns(raw, required, DATA_PATH.name):
+        return
+    raw = raw.copy()
+    country = raw.groupby("country").agg(
+        Revenue=("total_amount","sum"),
+        Customers=("customer_id","nunique"),
+        Orders=("invoice","nunique")
+    ).reset_index()
+    total_country = country.shape[0]
+    total_revenue = country["Revenue"].sum()
+    total_customer = country["Customers"].sum()
+    total_orders = country["Orders"].sum()
+    kpi_row([
+        {
+            "icon":"ti-world",
+            "label":"Countries",
+            "value":format_number(total_country)
+        },
+        {
+            "icon":"ti-currency-rupee",
+            "label":"Revenue",
+            "value":format_money(total_revenue)
+        },
+        {
+            "icon":"ti-users",
+            "label":"Customers",
+            "value":format_number(total_customer)
+        },
+        {
+            "icon":"ti-shopping-cart",
+            "label":"Orders",
+            "value":format_number(total_orders)
+        }
+    ])
+    st.write("")
+    left,right = st.columns([1.4,1])
+    with left:
+        with st.container(border=True):
+            fig = px.scatter_geo(
+                country,
+                locations="country",
+                locationmode="country names",
+                size="Revenue",
+                color="Revenue",
+                hover_name="country",
+                projection="natural earth",
+                title="Global Revenue Distribution"
+            )
+            st.plotly_chart(plotly_layout(fig),width="stretch")
+    with right:
+        with st.container(border=True):
+            top = country.nlargest(10,"Revenue")
+            fig = px.bar(
+                top,
+                x="Revenue",
+                y="country",
+                orientation="h",
+                title="Top Countries by Revenue"
+            )
+            fig.update_traces(marker_color=BRAND["blue"])
+            st.plotly_chart(plotly_layout(fig),width="stretch")
+    left,right = st.columns(2)
+    with left:
+        with st.container(border=True):
+            fig = px.pie(
+                top,
+                names="country",
+                values="Revenue",
+                hole=.55,
+                title="Revenue Share"
+            )
+            st.plotly_chart(plotly_layout(fig,430),width="stretch")
+    with right:
+        with st.container(border=True):
+            fig = px.scatter(
+                country,
+                x="Customers",
+                y="Revenue",
+                size="Orders",
+                hover_name="country",
+                title="Customers vs Revenue"
+            )
+            fig.update_traces(marker_color=BRAND["primary"])
+            st.plotly_chart(plotly_layout(fig,430),width="stretch")
+
+
+# --------------------------------------------------------------------------------------
+# Page: Revenue Analysis
+# --------------------------------------------------------------------------------------
+@st.fragment
+def revenue_analysis(raw: pd.DataFrame) -> None:
+    if raw.empty:
+        empty_state(f"Processed data file is missing. Expected <code>{DATA_PATH}</code>", "⚠️")
+        return
+    required = [
+        "invoicedate",
+        "total_amount",
+        "customer_id",
+        "invoice",
+        "country"
+    ]
+    if not guard_columns(raw, required, DATA_PATH.name):
+        return
+    raw = raw.copy()
+    raw["invoicedate"] = pd.to_datetime(raw["invoicedate"], errors="coerce")
+    raw["month"] = raw["invoicedate"].dt.to_period("M").astype(str)
+    total_revenue = raw["total_amount"].sum()
+    total_customers = raw["customer_id"].nunique()
+    avg_order = raw.groupby("invoice")["total_amount"].sum().mean()
+    revenue_customer = total_revenue / total_customers
+    kpi_row([
+        {
+            "icon":"ti-currency-rupee",
+            "label":"Total Revenue",
+            "value":format_money(total_revenue)
+        },
+        {
+            "icon":"ti-users",
+            "label":"Customers",
+            "value":format_number(total_customers)
+        },
+        {
+            "icon":"ti-chart-line",
+            "label":"Revenue / Customer",
+            "value":format_money(revenue_customer)
+        },
+        {
+            "icon":"ti-shopping-cart",
+            "label":"Average Order Value",
+            "value":format_money(avg_order)
+        }
+    ])
+    st.write("")
+    left,right = st.columns(2)
+    with left:
+        with st.container(border=True):
+            monthly = raw.groupby("month",as_index=False)["total_amount"].sum()
+            fig = px.line(
+                monthly,
+                x="month",
+                y="total_amount",
+                markers=True,
+                title="Monthly Revenue"
+            )
+            fig.update_traces(line_color=BRAND["primary"])
+            st.plotly_chart(plotly_layout(fig),width="stretch")
+    with right:
+        with st.container(border=True):
+            country = raw.groupby(
+                "country",
+                as_index=False
+            )["total_amount"].sum()
+            country = country.nlargest(10,"total_amount")
+            fig = px.bar(
+                country,
+                x="total_amount",
+                y="country",
+                orientation="h",
+                title="Top Revenue Countries"
+            )
+            fig.update_traces(marker_color=BRAND["blue"])
+            st.plotly_chart(plotly_layout(fig),width="stretch")
+    left,right = st.columns(2)
+    with left:
+        with st.container(border=True):
+            customer = raw.groupby(
+                "customer_id",
+                as_index=False
+            )["total_amount"].sum()
+            customer = customer.nlargest(10,"total_amount")
+            fig = px.bar(
+                customer,
+                x="total_amount",
+                y="customer_id",
+                orientation="h",
+                title="Top Revenue Customers"
+            )
+            fig.update_traces(marker_color=BRAND["amber"])
+            st.plotly_chart(plotly_layout(fig,430),width="stretch")
+    with right:
+        with st.container(border=True):
+            fig = px.histogram(
+                raw,
+                x="total_amount",
+                nbins=40,
+                title="Revenue Distribution"
+            )
+            fig.update_traces(marker_color=BRAND["primary"])
+            st.plotly_chart(plotly_layout(fig,430),width="stretch")
+
+
+# --------------------------------------------------------------------------------------
+# Page: Order & Transaction
+# --------------------------------------------------------------------------------------
+@st.fragment
+def order_transaction(raw: pd.DataFrame) -> None:
+
+    
+    if raw.empty:
+        empty_state(f"Processed data file is missing. Expected <code>{DATA_PATH}</code>", "⚠️")
+        return
+
+    required = [
+        "invoicedate",
+        "invoice",
+        "quantity",
+        "total_amount",
+        "customer_id"
+    ]
+
+    if not guard_columns(raw, required, DATA_PATH.name):
+        return
+
+    raw = raw.copy()
+
+    raw["invoicedate"] = pd.to_datetime(raw["invoicedate"], errors="coerce")
+
+    raw["month"] = raw["invoicedate"].dt.to_period("M").astype(str)
+
+    raw["weekday"] = raw["invoicedate"].dt.day_name()
+
+    total_orders = raw["invoice"].nunique()
+
+    total_transactions = len(raw)
+
+    total_quantity = raw["quantity"].sum()
+
+    avg_quantity = raw.groupby("invoice")["quantity"].sum().mean()
+
+    kpi_row([
+
+        {
+            "icon":"ti-shopping-cart",
+            "label":"Orders",
+            "value":format_number(total_orders)
+        },
+
+        {
+            "icon":"ti-receipt",
+            "label":"Transactions",
+            "value":format_number(total_transactions)
+        },
+
+        {
+            "icon":"ti-package",
+            "label":"Quantity Sold",
+            "value":format_number(total_quantity)
+        },
+
+        {
+            "icon":"ti-chart-bar",
+            "label":"Avg Qty / Order",
+            "value":f"{avg_quantity:.1f}"
+        }
+
+    ])
+
+    st.write("")
+
+    left,right = st.columns(2)
+
+    with left:
+
+        with st.container(border=True):
+
+            monthly = raw.groupby(
+                "month",
+                as_index=False
+            )["invoice"].nunique()
+
+            fig = px.line(
+
+                monthly,
+
+                x="month",
+
+                y="invoice",
+
+                markers=True,
+
+                title="Monthly Orders"
+
+            )
+
+            fig.update_traces(line_color=BRAND["primary"])
+
+            st.plotly_chart(plotly_layout(fig),width="stretch")
+
+    with right:
+
+        with st.container(border=True):
+
+            weekday = raw.groupby(
+                "weekday",
+                as_index=False
+            )["invoice"].nunique()
+
+            weekday["weekday"] = pd.Categorical(
+
+                weekday["weekday"],
+
+                categories=[
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                    "Sunday"
+                ],
+
+                ordered=True
+
+            )
+
+            weekday = weekday.sort_values("weekday")
+
+            fig = px.bar(
+
+                weekday,
+
+                x="weekday",
+
+                y="invoice",
+
+                title="Orders by Weekday"
+
+            )
+
+            fig.update_traces(marker_color=BRAND["blue"])
+
+            st.plotly_chart(plotly_layout(fig),width="stretch")
+
+    left,right = st.columns(2)
+
+    with left:
+
+        with st.container(border=True):
+
+            order_value = raw.groupby(
+                "invoice",
+                as_index=False
+            )["total_amount"].sum()
+
+            fig = px.histogram(
+
+                order_value,
+
+                x="total_amount",
+
+                nbins=35,
+
+                title="Order Value Distribution"
+
+            )
+
+            fig.update_traces(marker_color=BRAND["amber"])
+
+            st.plotly_chart(plotly_layout(fig,430),width="stretch")
+
+    with right:
+
+        with st.container(border=True):
+
+            qty = raw.groupby(
+                "month",
+                as_index=False
+            )["quantity"].sum()
+
+            fig = px.area(
+
+                qty,
+
+                x="month",
+
+                y="quantity",
+
+                title="Monthly Quantity Sold"
+
+            )
+
+            fig.update_traces(
+
+                line_color=BRAND["good"],
+
+                fillcolor="rgba(61,214,140,0.18)"
+
+            )
+
+            st.plotly_chart(plotly_layout(fig,430),width="stretch")
+
+
+# --------------------------------------------------------------------------------------
+# Page: Sales Trend Analysis
+# --------------------------------------------------------------------------------------
+@st.fragment
+def sales_trend_analysis(raw: pd.DataFrame) -> None:
+    
+
+    if raw.empty:
+        empty_state(f"Processed data file is missing. Expected <code>{DATA_PATH}</code>", "⚠️")
+        return
+
+    required = ["invoicedate", "total_amount", "invoice", "quantity"]
+
+    if not guard_columns(raw, required, DATA_PATH.name):
+        return
+
+    raw = raw.copy()
+
+    raw["invoicedate"] = pd.to_datetime(raw["invoicedate"], errors="coerce")
+
+    raw["month"] = raw["invoicedate"].dt.to_period("M").astype(str)
+
+    raw["quarter"] = "Q" + raw["invoicedate"].dt.quarter.astype(str)
+
+    raw["weekday"] = raw["invoicedate"].dt.day_name()
+
+    total_revenue = raw["total_amount"].sum()
+
+    total_orders = raw["invoice"].nunique()
+
+    total_quantity = raw["quantity"].sum()
+
+    avg_order_value = raw.groupby("invoice")["total_amount"].sum().mean()
+
+    kpi_row([
+
+        {
+            "icon":"ti-currency-rupee",
+            "label":"Revenue",
+            "value":format_money(total_revenue)
+        },
+
+        {
+            "icon":"ti-shopping-cart",
+            "label":"Orders",
+            "value":format_number(total_orders)
+        },
+
+        {
+            "icon":"ti-package",
+            "label":"Quantity Sold",
+            "value":format_number(total_quantity)
+        },
+
+        {
+            "icon":"ti-chart-line",
+            "label":"Average Order Value",
+            "value":format_money(avg_order_value)
+        },
+
+    ])
+
+    st.write("")
+
+    left, right = st.columns(2)
+
+    with left:
+
+        with st.container(border=True):
+
+            monthly = raw.groupby("month", as_index=False)["total_amount"].sum()
+
+            fig = px.area(
+
+                monthly,
+
+                x="month",
+
+                y="total_amount",
+
+                title="Monthly Revenue Trend"
+
+            )
+
+            fig.update_traces(
+
+                line_color=BRAND["blue"],
+
+                fillcolor="rgba(76,159,239,0.16)"
+
+            )
+
+            fig.update_yaxes(title="Revenue")
+
+            fig.update_xaxes(title="Month")
+
+            st.plotly_chart(plotly_layout(fig), width="stretch")
+
+    with right:
+
+        with st.container(border=True):
+
+            quarterly = raw.groupby("quarter", as_index=False)["total_amount"].sum()
+
+            fig = px.bar(
+
+                quarterly,
+
+                x="quarter",
+
+                y="total_amount",
+
+                title="Quarterly Revenue"
+
+            )
+
+            fig.update_traces(marker_color=BRAND["amber"])
+
+            fig.update_yaxes(title="Revenue")
+
+            fig.update_xaxes(title="Quarter")
+
+            st.plotly_chart(plotly_layout(fig), width="stretch")
+
+    left, right = st.columns(2)
+
+    with left:
+
+        with st.container(border=True):
+
+            weekday = raw.groupby("weekday", as_index=False)["total_amount"].sum()
+
+            weekday["weekday"] = pd.Categorical(
+
+                weekday["weekday"],
+
+                categories=[
+                    "Monday","Tuesday","Wednesday",
+                    "Thursday","Friday","Saturday","Sunday"
+                ],
+
+                ordered=True
+
+            )
+
+            weekday = weekday.sort_values("weekday")
+
+            fig = px.bar(
+
+                weekday,
+
+                x="weekday",
+
+                y="total_amount",
+
+                title="Sales by Weekday"
+
+            )
+
+            fig.update_traces(marker_color=BRAND["green"])
+
+            fig.update_yaxes(title="Revenue")
+
+            fig.update_xaxes(title="Weekday")
+
+            st.plotly_chart(plotly_layout(fig,430), width="stretch")
+
+    with right:
+
+        with st.container(border=True):
+
+            orders = raw.groupby("month")["invoice"].nunique().reset_index()
+
+            fig = px.line(
+
+                orders,
+
+                x="month",
+
+                y="invoice",
+
+                markers=True,
+
+                title="Monthly Orders"
+
+            )
+
+            fig.update_traces(line_color=BRAND["purple"])
+
+            fig.update_yaxes(title="Orders")
+
+            fig.update_xaxes(title="Month")
+
+            st.plotly_chart(plotly_layout(fig,430), width="stretch")
+
+
+# --------------------------------------------------------------------------------------
 # Main
 # --------------------------------------------------------------------------------------
 
 def main() -> None:
+
+    # ---------------- Login ----------------
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+
+    if not st.session_state.logged_in:
+        login()
+        return
+
+    # ---------------- Theme ----------------
     apply_theme()
+
+    # ---------------- Sidebar ----------------
     sidebar()
+
+    # ---------------- Load Data ----------------
     raw, forecast, product, customer, metrics = load_all_data()
 
-    brand_header()
-    
-    # 1. Create a clean list of page names
-    page_names = [f"{icon}  {name}" for name, icon in PAGES]
-    
-    # 2. Replace st.tabs with a horizontal radio button for navigation
-    # This acts as your new, glitch-free top navigation bar
-    selected_page = st.radio(
-        "Navigation", 
-        options=page_names, 
-        horizontal=True, 
-        label_visibility="collapsed"
+    # ---------------- Current Page ----------------
+    selected_page = st.session_state.get(
+        "nr_nav_radio",
+        PAGE_NAMES[0],
     )
 
-    # 3. Use strict conditional rendering. 
-    # Only the selected page is executed and sent to the browser.
+    # ---------------- Brand Header ----------------
+    brand_header()
+
     try:
-        if selected_page == page_names[0]:
+
+        if selected_page == PAGE_NAMES[0]:
+
+            page_header(
+                "📊 Executive Overview Dashboard",
+                "AI-powered overview of sales, customers and business performance",
+                "ti-dashboard",
+            )
+
             executive_overview(raw, customer, product)
-            
-        elif selected_page == page_names[1]:
+
+        elif selected_page == PAGE_NAMES[1]:
+
+            page_header(
+                "📈 Demand Intelligence Dashboard",
+                "Forecast demand, trends and future sales opportunities",
+                "ti-chart-line",
+            )
+
             demand_intelligence(forecast)
-            
-        elif selected_page == page_names[2]:
+
+        elif selected_page == PAGE_NAMES[2]:
+
+            page_header(
+                "👥 Customer Analytics Dashboard",
+                "Customer behaviour, segments and profitability insights",
+                "ti-users",
+            )
+
             customer_hub(customer)
-            
-        elif selected_page == page_names[3]:
+
+        elif selected_page == PAGE_NAMES[3]:
+
+            page_header(
+                "📦 Inventory Health Dashboard",
+                "Monitor stock availability and inventory performance",
+                "ti-box",
+            )
+
             inventory_health(product)
-            
-        elif selected_page == page_names[4]:
+
+        elif selected_page == PAGE_NAMES[4]:
+
+            page_header(
+                "🛠️ MLOps Monitoring Dashboard",
+                "Monitor model health and production performance",
+                "ti-settings",
+            )
+
             mlops_monitor(metrics, forecast)
-            
+
+        elif selected_page == PAGE_NAMES[5]:
+
+            page_header(
+                "🌍 Regional Sales Dashboard",
+                "Analyse regional revenue and market performance",
+                "ti-world",
+            )
+
+            regional_sales(raw)
+
+        elif selected_page == PAGE_NAMES[6]:
+
+            page_header(
+                "💰 Revenue Analysis Dashboard",
+                "Monitor revenue performance and customer profitability",
+                "ti-currency-rupee",
+            )
+
+            revenue_analysis(raw)
+
+        elif selected_page == PAGE_NAMES[7]:
+
+            page_header(
+                "🧾 Order & Transaction Dashboard",
+                "Analyse orders, transactions and purchasing patterns",
+                "ti-receipt",
+            )
+
+            order_transaction(raw)
+
+        elif selected_page == PAGE_NAMES[8]:
+
+            page_header(
+                "📉 Sales Trend Analysis Dashboard",
+                "Explore sales patterns and growth movements",
+                "ti-chart-bar",
+            )
+
+            sales_trend_analysis(raw)
+
     except Exception as exc:
+
         st.error("Something went wrong while rendering this page.")
+
         with st.expander("Error details"):
             st.exception(exc)
 
     st.markdown(
-        "<div style='margin-top:2rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.08); color:#6B7280; font-size:0.78rem;'>NeuralRetail Intelligence</div>",
+        """
+        <div style="
+            margin-top:2rem;
+            padding-top:1rem;
+            border-top:1px solid rgba(255,255,255,.08);
+            color:#6B7280;
+            font-size:.78rem;
+            text-align:center;">
+            NeuralRetail Intelligence
+        </div>
+        """,
         unsafe_allow_html=True,
     )
+
 
 if __name__ == "__main__":
     main()
