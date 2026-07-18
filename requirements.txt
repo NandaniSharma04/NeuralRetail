@@ -148,7 +148,7 @@ networkx==3.4.2
 notebook==7.6.0
 notebook_shim==0.2.4
 numba==0.66.0
-numpy==1.26.4
+numpy
 openai==2.32.0
 opencv-python==4.8.1.78
 opencv-python-headless==4.9.0.80
