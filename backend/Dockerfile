@@ -1,4 +1,3 @@
-# backend/Dockerfile
 FROM python:3.10-slim
 
 WORKDIR /app
@@ -11,12 +10,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements and install
 COPY requirements.txt .
 RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
-# Copy backend source code and the checkpoints directory
-COPY backend/ /app/
+
+# Copy the entire backend directory AS a backend directory
+COPY backend/ /app/backend/
+
+# Copy your models and checkpoints
+COPY models/ /app/models/
 COPY checkpoints/ /app/checkpoints/
 
-# Expose FastAPI default port
+# Expose port (Documentation only)
 EXPOSE 8000
 
-# Run the API
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Run the API using the correct module path and Render's dynamic port
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
